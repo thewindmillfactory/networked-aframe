@@ -27,6 +27,7 @@
   "dependencies": {
     "buffered-interpolation": "^0.2.5",
     "express": "^4.17.1",
+    "mediasoup-client": "^3.6.9",
     "socket.io": "^2.3.0"
   },
   "devDependencies": {

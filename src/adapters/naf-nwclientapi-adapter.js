@@ -1,5 +1,11 @@
 /* global NAF, io */
 
+let mediasoup = require('mediasoup-client');
+
+
+// currently uses socket.io as well.  todo move into a separate
+// nwclientapi.js
+
 /**
  * NWClientApiAdapter (nwclientapi)
  * networked-scene: serverURL needs to be ws://localhost:8080 when running locally
@@ -11,6 +17,8 @@ class NWClientApiAdapter {
     if (io === undefined)
       console.warn('It looks like socket.io has not been loaded before SocketioAdapter. Please do that.')
 
+
+    this.device = new mediasoup.Device();
     this.app = "default";
     this.room = "default";
     this.occupantListener = null;
