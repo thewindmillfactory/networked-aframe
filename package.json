@@ -28,7 +28,9 @@
     "buffered-interpolation": "^0.2.5",
     "express": "^4.17.1",
     "mediasoup-client": "^3.6.9",
-    "socket.io": "^2.3.0"
+    "protoo-client": "^4.0.4",
+    "socket.io": "^2.3.0",
+    "uuidv4": "^6.1.0"
   },
   "devDependencies": {
     "aframe": "~1.0.0",

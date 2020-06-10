@@ -1,6 +1,7 @@
 const WebrtcAdapter = require("./naf-webrtc-adapter");
 const SocketioAdapter = require('./naf-socketio-adapter');
 const NWClientApiAdapter = require('./naf-nwclientapi-adapter');
+const DialogAdapter = require('./naf-dialog-adapter');
 
 class AdapterFactory {
   constructor() {
@@ -8,6 +9,7 @@ class AdapterFactory {
       "socketio": SocketioAdapter,
       "webrtc": WebrtcAdapter,
       "nwclientapi": NWClientApiAdapter,
+      "dialog": DialogAdapter,
     };
 
     this.IS_CONNECTED = AdapterFactory.IS_CONNECTED;
