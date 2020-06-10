@@ -52,6 +52,7 @@ class DialogAdapter {
     this.type = "dialog";
     this.occupants = []; // This is a public field
     this._clientId = uuid();
+    this._pendingBroadcasts = [];
   }
 
   setForceTcp(forceTcp) {
@@ -175,6 +176,7 @@ class DialogAdapter {
       }
     });
 
+
     this._protoo.on("notification", notification => {
       debug('proto "notification" event [method:%s, data:%o]', notification.method, notification.data);
 
@@ -247,6 +249,13 @@ class DialogAdapter {
 
           break;
         }
+
+        case "newBroadcastData": {
+          const { clientId, dataType, data } = notification.data;
+          this._onOccupantMessage(clientId, dataType, data, null);
+          break;
+        }
+
       }
     });
 
@@ -320,24 +329,39 @@ class DialogAdapter {
     return Date.now() + this._avgTimeOffset;
   }
 
+  sendDataToAllOccupants(data)
+  {
+    if (this._protoo.connected)
+    {
+      for (var i = 0; i < this._pendingBroadcasts.length; i++) {
+        this._protoo.request("broadcastDataToPeers", this._pendingBroadcasts[i]);  
+      }
+      this._pendingBroadcasts.length = 0;
+      this._protoo.request("broadcastDataToPeers", data);
+    }
+    else
+    {
+      this._pendingBroadcasts.push(data);
+    }
+  }
+
+  
+
   sendData(clientId, dataType, data) {
     // TODO: provide unreliable transport
     // this.unreliableTransport(clientId, dataType, data);
-    this.sendDataGuaranteed(clientId, dataType, data);
+    //this.sendDataGuaranteed(clientId, dataType, data);
+    this.sendDataToAllOccupants({clientId: this._clientId, dataType, data});
   }
   sendDataGuaranteed(clientId, dataType, data) {
-    this.reliableTransport(clientId, dataType, data);
+    //this.reliableTransport(clientId, dataType, data);
+    this.sendDataToAllOccupants({clientId: this._clientId, dataType, data});
   }
   broadcastData(dataType, data) {
-    // TODO: this.unreliableTransport(undefined, dataType, data);
-
-    console.log('todo broadcastData()',  data);
-    // this.broadcastDataGuaranteed(dataType, data);
-
+    this.sendDataToAllOccupants({clientId: this._clientId, dataType, data});
   }
   broadcastDataGuaranteed(dataType, data) {
-    console.log('todo broadcastDataGuaranteed()',  data);
-    //this.reliableTransport(undefined, dataType, data);
+    this.sendDataToAllOccupants({clientId: this._clientId, dataType, data});
   }
 
   setReconnectionListeners(reconnectingListener, reconnectedListener, reconnectionErrorListener) {
