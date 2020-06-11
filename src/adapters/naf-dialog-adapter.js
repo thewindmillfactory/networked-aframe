@@ -102,6 +102,13 @@ class DialogAdapter {
     this._onOccupantMessage = messageListener;
   }
 
+  dumpConsumers() {
+    console.log('consumers:')
+    for (const entry of this._consumers.entries()) {
+      console.log(entry[0], entry[1]);
+    }
+  }
+
   async connect() {
     const urlWithParams = new URL(this._serverUrl);
     urlWithParams.searchParams.append("roomId", this._roomId);
@@ -138,6 +145,7 @@ class DialogAdapter {
           } = request.data;
 
           try {
+            console.log('creating a consumer on the transport');
             const consumer = await this._recvTransport.consume({
               id,
               producerId,
@@ -148,6 +156,7 @@ class DialogAdapter {
 
             // Store in the map.
             this._consumers.set(consumer.id, consumer);
+            this.dumpConsumers();
 
             consumer.on("transportclose", () => this.removeConsumer(consumer.id));
 
