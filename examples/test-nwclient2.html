@@ -1,0 +1,251 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Dev Example — Networked-Aframe</title>
+    <meta name="description" content="Dev Example — Networked-Aframe">
+
+    <script src="https://aframe.io/releases/1.0.3/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.slim.js"></script>
+    <script src="/build.js"></script>
+    <script>window.NAF || document.write('<script src="https://unpkg.com/networked-aframe/dist/networked-aframe.min.js">\x3C/script>')</script>
+
+    <script src="https://unpkg.com/aframe-randomizer-components@^3.0.1/dist/aframe-randomizer-components.min.js"></script>
+    <script src="https://unpkg.com/aframe-particle-system-component@1.0.5/dist/aframe-particle-system-component.min.js"></script>
+    <script src="/js/spawn-in-circle.component.js"></script>
+  </head>
+  <body>
+
+
+    <a-scene networked-scene="
+      serverURL: wss://127.0.0.1:4443; 
+      room: dev;
+      debug: true;
+      adapter: nwclientapi;
+    ">
+    <a-box position="-1 0.5 -3" rotation="0 45 0" shadow material="src: #webcam"></a-box>
+
+      <a-assets>
+        <video id="webcam" playsinline></video>
+        <img id="grid" src="https://img.gs/bbdkhfbzkk/stretch/https://i.imgur.com/25P1geh.png" crossorigin="anonymous">
+        <img id="sky" src="https://i.imgur.com/WqlqEkq.jpg" crossorigin="anonymous" />
+
+
+
+        <!-- Templates -->
+
+        <!-- Avatar -->
+        <template id="avatar-template">
+          <a-entity class="avatar">
+            <a-box class="head"
+              color="#ffffff"
+              scale="0.45 0.5 0.4"
+              update-video-track-material
+            >
+              </a-box>
+            </a-entity>
+          </a-entity>
+        </template>
+
+        <!-- /Templates -->
+      </a-assets>
+
+      <a-entity id="player"
+        networked="template:#avatar-template;attachTemplateToLocal:false;"
+        camera
+        position="0 1.6 0"
+        spawn-in-circle="radius:3"
+        wasd-controls look-controls
+        >
+        <a-sphere class="head"
+          visible="false"
+          random-color
+        ></a-sphere>
+      </a-entity>
+
+      <a-entity position="0 0 0"
+        geometry="primitive: plane; width: 10000; height: 10000;" rotation="-90 0 0"
+        material="src: #grid; repeat: 10000 10000; transparent: true; metalness:0.6; roughness: 0.4; sphericalEnvMap: #sky;"></a-entity>
+
+      <a-entity light="color: #ccccff; intensity: 1; type: ambient;" visible=""></a-entity>
+      <a-entity light="color: #ffaaff; intensity: 1.5" position="5 5 5"></a-entity>
+    </a-scene>
+
+<script>
+
+// update the canvas and the attached material with the video source
+AFRAME.registerComponent('update-video-track-material', {
+  dependencies: ['geometry', 'material'],
+
+  schema: {
+    video_element: { default: null },
+    canvas: { default: null },
+    video_texture: { default: null},
+    material: { default: null},
+    media_stream: { default: null }
+  },
+  init: function () {
+    console.log('INIT');
+    let data = this.data;
+    data.video_element = document.createElement('video');
+    data.video_element.playsinline = true;
+    data.video_element.autoplay = true;
+    data.video_element.muted = true;
+    data.video_element.style = "visiblity: hidden";
+    document.body.appendChild(data.video_element);
+ 
+
+      data.canvas = document.createElement('canvas');
+      data.canvas.style = "visiblility: hidden";
+      document.body.appendChild(data.canvas);
+
+      let context = data.canvas.getContext('2d');
+      context.fillStyle = '#FF0000';
+      context.fillRect(0,0,data.canvas.width, data.canvas.height);
+
+      data.video_texture = new THREE.Texture(this.canvas);
+      data.video_texture.minFilter = THREE.LinearFilter;
+      data.video_texture.magFilter = THREE.LinearFilter;
+
+      data.material = new THREE.MeshBasicMaterial({map:data.video_texture, side: THREE.DoubleSide});
+
+      this.el.getObject3D('mesh').material = data.material;
+
+      this.data.waiting_for_video = true;
+     
+  },
+  tick: function () {
+    let el = this.el;
+    let data = this.data;
+    //var material;
+
+	  //material = el.getObject3D('mesh').material;
+	  //if (!material.map) { return; }
+    //material.map.needsUpdate = true;
+
+    let media = data.media_stream;
+    if (media) {
+      let tracks = media.getVideoTracks();
+      if (tracks && tracks.length) {
+        track = tracks[0];
+        if (data.waiting_for_video)
+        {
+          data.video_element.video = track;
+          data.waiting_for_video = false;
+          data.video_element.play()
+			.then(() => { })
+			.catch((e) => {
+				console.error("Play error:" + e);
+        err(e);
+      });
+
+        }
+
+        
+        if (data.video_element.readyState === data.video_element.HAVE_ENOUGH_DATA) {
+			    let context = data.canvas.getContext('2d');
+			    context.drawImage(data.video_element, 0, 0, data.canvas.width, data.canvas.height);
+			    // and indicate to three.js that the texture needs to be redrawn from the canvas
+			    data.video_texture.needsUpdate = true;
+        }
+      }
+    }
+	}
+}
+);
+
+// Define custom NAF schema for updates
+NAF.schemas.add({
+  template: '#avatar-template',
+    components: [
+      'position',
+      'rotation',
+    ]
+});
+
+// Called by Networked-Aframe when the NAF adapter connects to server
+function onConnect () {
+  console.log("onConnect", new Date());
+}
+
+
+//
+// find the webcam object to send to other peers
+//
+var local_video_stream;
+navigator.mediaDevices.getUserMedia({audio: false, video: true})
+  .then(video_stream => {
+    console.log('got video');
+    local_video_stream = video_stream;
+    local_video_stream.onaddtrack = function(event) {
+        console.log('track added: ' + event.track.kind);
+    }
+  }
+);
+
+//
+// synchronization junk
+//
+var sleep = time => new Promise(resolve => setTimeout(resolve, time))
+var poll = (promiseFn, time) => promiseFn().then(
+             sleep(time).then(() => poll(promiseFn, time)))
+
+  //
+  // update loop to synchronize the asynchronous: network and the media stream
+  // (may not be necessary because connection adapter has some fancy pending queues)
+  // 
+  var registered_local_streams;
+  poll(() => new Promise(() => {
+    if (!registered_local_streams &&
+        local_video_stream && NAF.connection.adapter.getConnectStatus())
+    {
+      console.log('NAF is connected');
+      NAF.connection.adapter.setLocalMediaStream(local_video_stream);
+      registered_local_streams = true;
+    }
+  }), 1000);
+
+
+let clientid2entitymap = new Map();
+let networkid2clientid = new Map();
+
+document.body.addEventListener('entityCreated', function (evt) {
+  let entity = evt.detail.el;
+  if (entity.firstUpdateData) {
+    let client_id = entity.firstUpdateData.creator;
+    let network_id = entity.firstUpdateData.networkId;
+    clientid2entitymap.set(client_id, entity);
+    networkid2clientid.set(network_id, client_id);
+
+  }
+  
+});
+
+document.body.addEventListener('entityRemoved', function (evt) {
+  let network_id = evt.detail.networkId;
+  if (network_id){
+    let client_id = networkid2clientid.get(network_id);
+    networkid2clientid.delete(network_id);
+    clientid2entitymap.delete(client_id);
+  }
+  
+});
+
+document.body.addEventListener('clientConnected', function (evt) {
+  NAF.connection.adapter.dumpConsumers();
+  console.error('clientConnected event. clientId =', evt.detail.clientId);
+  var promise = NAF.connection.adapter.getMediaStream(evt.detail.clientId, "video");
+  promise.then(function(media_stream){
+    console.log('media stream promise resolved for', evt.detail.clientId);
+    console.log(media_stream);
+    let entity = clientid2entitymap.get(evt.detail.clientId);
+    let obj = entity.children[0];
+    obj.setAttribute('update-video-track-material', {
+      'media_stream' : media_stream
+    });
+  });
+});
+
+
+    </script>
+  </body>
+</html>
