@@ -103,9 +103,11 @@ class DialogAdapter {
   }
 
   dumpConsumers() {
-    console.log('consumers:')
-    for (const entry of this._consumers.entries()) {
-      console.log(entry[0], entry[1]);
+    if (this._consumers.size) {
+      console.log('consumers:')
+      for (const entry of this._consumers.entries()) {
+        console.log(entry[0], entry[1]);
+      }
     }
   }
 

@@ -38,35 +38,11 @@
         <!-- Avatar -->
         <template id="avatar-template">
           <a-entity class="avatar">
-            <a-sphere class="head"
+            <a-box class="head"
               color="#ffffff"
               scale="0.45 0.5 0.4"
-            ></a-sphere>
-            <a-entity class="face"
-              position="0 0.05 0"
             >
-              <a-sphere class="eye"
-                color="#efefef"
-                position="0.16 0.1 -0.35"
-                scale="0.12 0.12 0.12"
-              >
-                <a-sphere class="pupil"
-                  color="#000"
-                  position="0 0 -1"
-                  scale="0.2 0.2 0.2"
-                ></a-sphere>
-              </a-sphere>
-              <a-sphere class="eye"
-                color="#efefef"
-                position="-0.16 0.1 -0.35"
-                scale="0.12 0.12 0.12"
-              >
-                <a-sphere class="pupil"
-                  color="#000"
-                  position="0 0 -1"
-                  scale="0.2 0.2 0.2"
-                ></a-sphere>
-              </a-sphere>
+              </a-box>
             </a-entity>
           </a-entity>
         </template>
@@ -165,25 +141,72 @@
         local_video_stream && NAF.connection.adapter.getConnectStatus())
     {
       console.log('NAF is connected');
-      var num_video_tracks = local_video_stream.getVideoTracks().length;
-      console.log('Num Local video tracks' + num_video_tracks);
       NAF.connection.adapter.setLocalMediaStream(local_video_stream);
       registered_local_streams = true;
     
     
     }
 
-    if (NAF.connection.adapter) {
-      NAF.connection.adapter.dumpConsumers();
-    }
 
-    
-
-
-
-
-    
   }), 1000);
+
+
+let clientid2entitymap = new Map();
+let networkid2clientid = new Map();
+
+document.body.addEventListener('entityCreated', function (evt) {
+  let entity = evt.detail.el;
+  if (entity.firstUpdateData) {
+    let client_id = entity.firstUpdateData.creator;
+    let network_id = entity.firstUpdateData.networkId;
+    clientid2entitymap.set(client_id, entity);
+    networkid2clientid.set(network_id, client_id);
+
+  }
+  
+});
+
+document.body.addEventListener('entityRemoved', function (evt) {
+  let network_id = evt.detail.networkId;
+  if (network_id){
+    let client_id = networkid2clientid.get(network_id);
+    networkid2clientid.delete(network_id);
+    clientid2entitymap.delete(client_id);
+  }
+  
+});
+
+document.body.addEventListener('clientConnected', function (evt) {
+  NAF.connection.adapter.dumpConsumers();
+  console.error('clientConnected event. clientId =', evt.detail.clientId);
+  var promise = NAF.connection.adapter.getMediaStream(evt.detail.clientId, "video");
+  promise.then(function(result){
+    console.log('media stream promise resolved for', evt.detail.clientId);
+    console.log(result);
+    let entity = clientid2entitymap.get(evt.detail.clientId);
+    let child = entity.children[0];
+    let material = child.components.material;
+
+    var videonode = document.createElement("VIDEO");
+    videonode.setAttribute('id', evt.detail.clientId);
+		videonode.setAttribute('src', result);
+
+    
+    var texture = new THREE.VideoTexture( videonode );
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.format = THREE.RGBFormat;
+
+    var src_string = '#' + evt.detail.clientId;
+    entity.setAttribute('material', {
+      src: src_string
+    });
+    
+    
+    
+    //entity.setAttribute('material', 'color', 'black');
+  });
+});
 
 
     </script>
