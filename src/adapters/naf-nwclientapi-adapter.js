@@ -342,7 +342,7 @@ class NWClientAPIAdapter {
 
   sendDataToAllOccupants(data)
   {
-    if (this._protoo.connected)
+    if (this._protoo && this._protoo.connected)
     {
       for (var i = 0; i < this._pendingBroadcasts.length; i++) {
         this._protoo.request("broadcastDataToPeers", this._pendingBroadcasts[i]);  

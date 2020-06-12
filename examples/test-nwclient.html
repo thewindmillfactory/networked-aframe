@@ -16,8 +16,8 @@
   <body>
 
 
-    <a-scene networked-scene="
-      serverURL: wss://127.0.0.1:4443; 
+    <a-scene id=sceny networked-scene="
+      serverURL: wss://thewindmillfactoryfloor.com:4443; 
       room: dev;
       debug: true;
       adapter: nwclientapi;
@@ -41,6 +41,7 @@
             <a-box class="head"
               color="#ffffff"
               scale="0.45 0.5 0.4"
+              material="src: #webcam"
             >
               </a-box>
             </a-entity>
@@ -179,32 +180,27 @@ document.body.addEventListener('entityRemoved', function (evt) {
 document.body.addEventListener('clientConnected', function (evt) {
   NAF.connection.adapter.dumpConsumers();
   console.error('clientConnected event. clientId =', evt.detail.clientId);
+
+
   var promise = NAF.connection.adapter.getMediaStream(evt.detail.clientId, "video");
   promise.then(function(result){
     console.log('media stream promise resolved for', evt.detail.clientId);
     console.log(result);
     let entity = clientid2entitymap.get(evt.detail.clientId);
-    let child = entity.children[0];
-    let material = child.components.material;
 
-    var videonode = document.createElement("VIDEO");
-    videonode.setAttribute('id', evt.detail.clientId);
-		videonode.setAttribute('src', result);
+    var scene = document.querySelector('a-scene');
 
-    
-    var texture = new THREE.VideoTexture( videonode );
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.format = THREE.RGBFormat;
+    var videoEl = document.createElement('a-video');
+    videoEl.setAttribute('srcObject', result);
+    videoEl.onloadedmetadata = () => {
+      videoEl.play()
+    }
+    document.body.appendChild(videoEl);
 
-    var src_string = '#' + evt.detail.clientId;
     entity.setAttribute('material', {
-      src: src_string
+      src: videoEl 
     });
     
-    
-    
-    //entity.setAttribute('material', 'color', 'black');
   });
 });
 
