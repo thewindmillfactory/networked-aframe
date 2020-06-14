@@ -21,6 +21,7 @@
       room: dev;
       debug: true;
       adapter: nwclientapi;
+      audio: true;
     ">
     <a-box position="-1 0.5 -3" rotation="0 45 0" shadow material="src: #webcam"></a-box>
 
@@ -36,7 +37,7 @@
 
         <!-- Avatar -->
         <template id="avatar-template">
-          <a-entity class="avatar">
+          <a-entity class="avatar" networked-audio-source="distanceModel: linear; maxDistance: 2.5">
             <a-box class="head"
               color="#ffffff"
               scale="0.45 0.5 0.4"
@@ -101,7 +102,7 @@
 AFRAME.registerComponent('networked-video-source', {
 init: function() {
     NAF.connection.onConnect(function() {
-            navigator.mediaDevices.getUserMedia({audio: false, video: true}).then(video_stream => {
+            navigator.mediaDevices.getUserMedia({audio: true, video: true}).then(video_stream => {
                 var local_video_stream = video_stream;
                 NAF.connection.adapter.setLocalMediaStream(local_video_stream);
             });
@@ -134,13 +135,13 @@ _setVideoStream(newStream) {
         }
         if (newStream)
         {
-	        this.videoEl = document.createElement('VIDEO'); 
-	        document.body.appendChild(this.videoEl);              // TODO is this required
-	        this.videoEl.setAttribute("playsinline", "");	
-	        this.videoEl.setAttribute("webkit-playsinline", "");
-	        this.videoEl.autoplay = true;
-	        this.videoEl.preload = "auto";
-	        this.videoEl.crossOrigin = "anonymous";
+            this.videoEl = document.createElement('VIDEO'); 
+            document.body.appendChild(this.videoEl);
+            this.videoEl.setAttribute("playsinline", "");   
+            this.videoEl.setAttribute("webkit-playsinline", "");
+            this.videoEl.autoplay = true;
+            this.videoEl.preload = "auto";
+            this.videoEl.crossOrigin = "anonymous";
 
             this.videoEl.srcObject = newStream;
             this.el.setAttribute('material', {src: this.videoEl});
