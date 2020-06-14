@@ -12,6 +12,7 @@
   "scripts": {
     "build": "browserify src/index.js -o examples/build.js",
     "dev": "npm run build && node ./server/index.js",
+    "devs": "npm run build && node ./server/index_https.js",
     "dist": "webpack --config webpack.config.js && webpack -p --config webpack.prod.config.js",
     "lint": "eslint src tests *.js",
     "prepare": "npm run dist",
