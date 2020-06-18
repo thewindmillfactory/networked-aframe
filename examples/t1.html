@@ -46,38 +46,60 @@ AFRAME.registerComponent('test-networked-video-sink', {
             }
         });
     },
+remove: function() {
+    console.log('ha ha ha ha ha');
+    if (this.testEl)
+    {
+        this.testEl.remove();
+        this.testEl = undefined;
+    }
+    if (this.videoEl)
+    {
+        this.videoEl.remove();
+    }
+    this.el.setAttribute('material', "color: yellow");
+},
 
+ _buildVideoElement(stream) {
+    let videoEl = document.createElement('VIDEO');
+    videoEl.setAttribute('playsinline', '');
+    videoEl.setAttribute('webkit-playsinline', '');
+    videoEl.autoplay = true;
+    videoEl.preload = 'auto';
+    videoEl.crossOrigin = 'anonymous';
+    videoEl.srcObject = stream;
+    return videoEl;
+ },
  _setVideoStream(newStream) {
+        if (this.videoEl) {
+               this.videoEl.remove(); 
+        }
         if (newStream != this.stream) {
             if (this.stream) {
                 this.stream.disconnect();
             }
+            let videoEl;
             if (newStream) {
-                this.videoEl = document.createElement('VIDEO');
-                this.el.sceneEl.appendChild(this.videoEl);
-                this.videoEl.setAttribute('playsinline', '');
-                this.videoEl.setAttribute('webkit-playsinline', '');
-                this.videoEl.autoplay = true;
-                this.videoEl.preload = 'auto';
-                this.videoEl.crossOrigin = 'anonymous';
-
-                this.videoEl.srcObject = newStream;
-                var promise = this.videoEl.play();
-                console.log(promise);
-
-                console.log('el was', this.el);
-
+                videoEl = this._buildVideoElement(newStream);
+                this.el.sceneEl.appendChild(videoEl);
+    
+                var promise = videoEl.play();
                 var self = this;
                 promise.then(function(){
-                    console.log('ya');
-                    console.log('el is', self.el);
-                    console.log('this is', this);
-                    self.el.setAttribute('material', {src: self.videoEl});
+                    self.el.setAttribute('material', {src: videoEl});
                 }).catch(function(error) {
                     console.log('rats ' + error);
                 });
+
+                let test_div = document.querySelector("#test-video-div");
+                if (test_div) {
+                    this.testEl = this._buildVideoElement(newStream);
+                    test_div.appendChild(this.testEl);
+                }
+
             }
             this.stream = newStream;
+            this.videoEl = videoEl;
         }
     }
 });
@@ -89,7 +111,11 @@ AFRAME.registerComponent('test-networked-video-sink', {
   </head>
   <body>
 
-    <a-scene id=sceny networked-scene="
+    <div id="test-video-div" style="height:200px; position: relative;"> 
+    </div>
+
+    <div id="scene-div" style="position: relative">
+    <a-scene id=sceny embedded networked-scene="
       serverURL: wss://thewindmillfactoryfloor.com:4443; 
       room: t1;
       debug: true;
@@ -97,7 +123,6 @@ AFRAME.registerComponent('test-networked-video-sink', {
       audio: true;
     ">
 
-<a-box position="-1 0.5 -3" rotation="0 45 0" shadow></a-box>
 
 <a-assets>
 
@@ -120,7 +145,7 @@ AFRAME.registerComponent('test-networked-video-sink', {
     <a-entity id="player"
         networked="template:#avatar-template;attachTemplateToLocal:false;"
         camera
-        position="0 1.6 0"
+        position="0 0 0"
         spawn-in-circle="radius:3"
         wasd-controls look-controls
         test-networked-video-source
@@ -131,16 +156,18 @@ AFRAME.registerComponent('test-networked-video-sink', {
         ></a-sphere>
       </a-entity>
 
+       <a-entity light="color: #ccccff; intensity: 1; type: ambient;" visible=""></a-entity>
+       <a-entity light="color: #ffaaff; intensity: 1.5" position="5 5 5"></a-entity>
+ 
+       <a-sky src="#sky" rotation="0 -90 0"></a-sky>
+
 
       <a-entity position="0 0 0"
         geometry="primitive: plane; width: 10000; height: 10000;" rotation="-90 0 0"
         material="src: #grid; repeat: 10000 10000; transparent: true; metalness:0.6; roughness: 0.4; sphericalEnvMap: #sky;"></a-entity>
 
-      <a-entity light="color: #ccccff; intensity: 1; type: ambient;" visible=""></a-entity>
-      <a-entity light="color: #ffaaff; intensity: 1.5" position="5 5 5"></a-entity>
-
-      <a-sky src="#sky" rotation="0 -90 0"></a-sky>
     </a-scene>
+    </div>
 
     <script>
       NAF.schemas.add({
@@ -155,6 +182,37 @@ AFRAME.registerComponent('test-networked-video-sink', {
     {
         this.speed = 0;
         this.showBall = true;
+    }
+
+    function jumpToTarget(target_id) {
+        let player = document.querySelector('#player'); 
+        let target = document.querySelector(target_id); 
+        player.setAttribute('position', target.object3D.position);
+
+    }
+    function jumpToBlue() {
+        jumpToTarget('#blue-box');
+    }
+
+    function lookAtBlue() {
+        let player = document.querySelector('#player'); 
+        let pmatrix = player.object3D.matrix;
+        let target = document.querySelector('#blue-box'); 
+
+        let lookat = new THREE.Matrix4();
+        lookat.lookAt(player.object3D.position, target.object3D.position, new THREE.Vector3(0,1,0));
+        let euler = new THREE.Euler();
+        euler.setFromRotationMatrix(lookat);
+
+          
+        // create second camera and set it as active 
+        var camera = document.createElement('a-camera');
+        player.appendChild(camera);
+        camera.object3D.rotation = euler;
+        camera.setAttribute('camera', 'active', true);
+    
+
+        player.setAttribute('rotation', euler);
     }
 
     function spawn10boxes() {
@@ -191,15 +249,17 @@ AFRAME.registerComponent('test-networked-video-sink', {
         var test_state = new TestState();
         var gui = new dat.GUI();
         var obj = { start:function(){ console.log("started") }};
+/*
         gui.add(obj,'start').name('[START]');
         gui.add({spawn10:spawn10boxes}, 'spawn10');
         gui.add({kill10:kill10boxes}, 'kill10');
         gui.add({dumpVideoNodes:dumpVideoNodes}, 'dumpVideoNodes');
+        gui.add({jumpToBlue:jumpToBlue}, 'jumpToBlue');
+        gui.add({lookAtBlue:lookAtBlue}, 'lookAtBlue');
         gui.add(test_state, 'showBall');
+*/
     }
 
-
-    
 
       // Called by Networked-Aframe when connected to server
       function onConnect () {
