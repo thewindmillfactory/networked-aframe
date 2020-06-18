@@ -304,6 +304,7 @@ class NWClientAPIAdapter {
 
   getMediaStream(clientId, kind = "audio") {
     let track;
+    console.log('ha');
 
     if (this._clientId === clientId) {
       if (kind === "audio" && this._micProducer) {
@@ -321,6 +322,7 @@ class NWClientAPIAdapter {
 
     if (track) {
       debug(`Already had ${kind} for ${clientId}`);
+        console.log('hoo');
       return Promise.resolve(new MediaStream([track]));
     } else {
       debug(`Waiting on ${kind} for ${clientId}`);
@@ -332,6 +334,7 @@ class NWClientAPIAdapter {
       const promise = new Promise((resolve, reject) => (requests[kind] = { resolve, reject }));
       requests[kind].promise = promise;
       promise.catch(e => console.warn(`${clientId} getMediaStream Error`, e));
+        console.log('roo');
       return promise;
     }
   }
