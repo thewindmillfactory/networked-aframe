@@ -102,6 +102,40 @@ class NWClientAPIAdapter {
     this._onOccupantMessage = messageListener;
   }
 
+ buildVideoElement(stream) {
+    let videoEl = document.createElement('VIDEO');
+    videoEl.setAttribute('playsinline', '');
+    videoEl.setAttribute('webkit-playsinline', '');
+    videoEl.setAttribute('height', 64);
+    videoEl.setAttribute('width', 64);
+    videoEl.autoplay = true;
+    videoEl.preload = 'auto';
+    videoEl.crossOrigin = 'anonymous';
+    videoEl.srcObject = stream;
+    return videoEl;
+ }
+
+  putAllVideoConsumersIntoDiv(div_name) {
+        let consumer_map = this._consumers;
+        let test_div = document.querySelector(div_name);
+        while (test_div.firstChild) {
+            test_div.removeChild(test_div.lastChild);
+        }
+        if (consumer_map.size) {
+            for (const entry of consumer_map.entries()) {
+                let id = entry[0];
+                let consumer = entry[1];
+                if (consumer.kind === "video") {
+                    let stream = new MediaStream([consumer.track]); 
+                    let video = this.buildVideoElement(stream);
+                    test_div.appendChild(video); 
+                }
+        }
+    }
+ }
+  
+  
+
   dumpConsumers() {
     if (this._consumers.size) {
       console.log('consumers:')
@@ -158,9 +192,12 @@ class NWClientAPIAdapter {
 
             // Store in the map.
             this._consumers.set(consumer.id, consumer);
-            this.dumpConsumers();
 
-            consumer.on("transportclose", () => this.removeConsumer(consumer.id));
+            consumer.on("transportclose", () => 
+            {
+                console.log("transport closed");
+                this.removeConsumer(consumer.id)
+            });
 
             // We are ready. Answer the protoo request so the server will
             // resume this Consumer (which was paused for now if video).
@@ -241,6 +278,7 @@ class NWClientAPIAdapter {
 
           if (!consumer) break;
 
+          console.log('closing consumer');
           consumer.close();
           this.removeConsumer(consumer.id);
 
@@ -304,7 +342,6 @@ class NWClientAPIAdapter {
 
   getMediaStream(clientId, kind = "audio") {
     let track;
-    console.log('ha');
 
     if (this._clientId === clientId) {
       if (kind === "audio" && this._micProducer) {
@@ -314,6 +351,7 @@ class NWClientAPIAdapter {
       }
     } else {
       this._consumers.forEach(consumer => {
+        console.log('new network entity cached peerid', consumer.appData.peerId);
         if (consumer.appData.peerId === clientId && kind == consumer.track.kind) {
           track = consumer.track;
         }
@@ -322,19 +360,21 @@ class NWClientAPIAdapter {
 
     if (track) {
       debug(`Already had ${kind} for ${clientId}`);
-        console.log('hoo');
       return Promise.resolve(new MediaStream([track]));
     } else {
       debug(`Waiting on ${kind} for ${clientId}`);
       if (!this._pendingMediaRequests.has(clientId)) {
+        console.log('new network entity making a pending request');
         this._pendingMediaRequests.set(clientId, {});
+      }
+      else {
+        console.log('new network entity already have one outstanding');
       }
 
       const requests = this._pendingMediaRequests.get(clientId);
       const promise = new Promise((resolve, reject) => (requests[kind] = { resolve, reject }));
       requests[kind].promise = promise;
       promise.catch(e => console.warn(`${clientId} getMediaStream Error`, e));
-        console.log('roo');
       return promise;
     }
   }
@@ -493,6 +533,7 @@ class NWClientAPIAdapter {
       // This will gate the connection flow until all voices will be heard.
       for (let i = 0; i < peers.length; i++) {
         const peerId = peers[i].id;
+        this._onOccupantConnected(peerId);
         this.occupants.push(peerId);
         if (!peers[i].hasProducers) continue;
         audioConsumerPromises.push(new Promise(res => this._initialAudioConsumerResolvers.set(peerId, res)));
